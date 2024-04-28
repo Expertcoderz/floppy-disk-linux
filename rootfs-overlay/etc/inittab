@@ -1,0 +1,8 @@
+::sysinit:/etc/init.d/rc
+
+tty1::respawn:/bin/ash
+tty2::respawn:/bin/ash
+tty3::respawn:/bin/ash
+
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
