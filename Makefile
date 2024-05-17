@@ -28,12 +28,12 @@ LINUX_HEADERS_DIR := linux-headers
 LINUX_BZIMAGE := $(LINUX_DIR)/arch/x86/boot/bzImage
 BOOTFS_IMAGE := floppy.img
 
-.PHONY: all source update configure build clean reset
-all: configure $(BOOTFS_IMAGE)
+.PHONY: all configure source update clean reset
+all: $(BOOTFS_IMAGE)
+configure: musl-configure busybox-configure linux-configure
 source: $(MUSL_DIR) $(BUSYBOX_DIR) $(LINUX_DIR)
 update: musl-update busybox-update linux-update
-configure: musl-configure busybox-configure linux-configure
-clean: musl-clean busybox-clean rootfs-clean linux-clean
+clean: musl-clean busybox-clean rootfs-clean linux-clean bootfs-clean
 reset:
 	rm -rf "$(MUSL_DIR)" "$(MUSL_BUILD_DIR)" "$(BUSYBOX_DIR)" "$(LINUX_DIR)" \
 		"$(LINUX_HEADERS_DIR)" "$(ROOTFS_DIR)" "$(ROOTFS_CPIO)" \
@@ -42,8 +42,13 @@ reset:
 $(MUSL_DIR):
 	git clone --depth=1 "$(MUSL_SOURCE)" "$(MUSL_DIR)"
 
-$(MUSL_BUILD_DIR):
-	mkdir -p "$(MUSL_BUILD_DIR)"/{bin,include,lib}
+$(MUSL_BUILD_DIR): | $(LINUX_HEADERS_DIR)
+	rm -rf "$(MUSL_BUILD_DIR)"
+
+	mkdir "$(MUSL_BUILD_DIR)" \
+		"$(MUSL_BUILD_DIR)"/bin \
+		"$(MUSL_BUILD_DIR)"/include \
+		"$(MUSL_BUILD_DIR)"/lib
 
 # These symlinks ensure that programs and headers required for building BusyBox
 # under musl are present (besides musl-gcc).
@@ -55,23 +60,24 @@ $(MUSL_BUILD_DIR):
 	ln -s "$$(which objcopy)" "$(MUSL_BUILD_DIR)"/bin/musl-objcopy
 	ln -s "$$(which objdump)" "$(MUSL_BUILD_DIR)"/bin/musl-objdum
 	ln -s "$$(which pkg-config)" "$(MUSL_BUILD_DIR)"/bin/musl-pkg-config
-	ln -s ../../linux-headers/include/linux "$(MUSL_BUILD_DIR)"/include/linux
-	ln -s ../../linux-headers/include/mtd "$(MUSL_BUILD_DIR)"/include/mtd
-	ln -s ../../linux-headers/include/asm "$(MUSL_BUILD_DIR)"/include/asm
-	ln -s ../../linux-headers/include/asm-generic "$(MUSL_BUILD_DIR)"/include/asm-generic
+	ln -s "../../$(LINUX_HEADERS_DIR)/include/linux" "$(MUSL_BUILD_DIR)"/include/linux
+	ln -s "../../$(LINUX_HEADERS_DIR)/include/mtd" "$(MUSL_BUILD_DIR)"/include/mtd
+	ln -s "../../$(LINUX_HEADERS_DIR)/include/asm" "$(MUSL_BUILD_DIR)"/include/asm
+	ln -s "../../$(LINUX_HEADERS_DIR)/include/asm-generic" "$(MUSL_BUILD_DIR)"/include/asm-generic
 
-$(MUSL_GCC): $(MUSL_DIR) $(MUSL_BUILD_DIR) $(LINUX_HEADERS_DIR) | musl-configure
+$(MUSL_GCC): | $(MUSL_DIR) $(MUSL_BUILD_DIR)
 	$(MAKE) -C "$(MUSL_DIR)" -j "$$(nproc)" all
 	$(MAKE) -C "$(MUSL_DIR)" install
 
-.PHONY: musl-update musl-configure musl-clean
-
+.PHONY: musl-update
 musl-update: $(MUSL_DIR)
 	git -C "$(MUSL_DIR)" pull
 
+.PHONY: musl-configure
 musl-configure: $(MUSL_DIR)
 	cd "$(MUSL_DIR)" && ./configure --prefix=../"$(MUSL_BUILD_DIR)"
 
+.PHONY: musl-clean
 musl-clean:
 	[ -d "$(MUSL_DIR)" ] && $(MAKE) -C "$(MUSL_DIR)" distclean
 	rm -rf "$(MUSL_BUILD_DIR)"
@@ -79,25 +85,27 @@ musl-clean:
 $(BUSYBOX_DIR):
 	git clone --depth=1 "$(BUSYBOX_SOURCE)" "$(BUSYBOX_DIR)"
 
-$(BUSYBOX): $(BUSYBOX_DIR) $(MUSL_BUILD_DIR) | busybox-configure
+$(BUSYBOX): $(BUSYBOX_DIR)/.config $(MUSL_GCC) | $(BUSYBOX_DIR)
 	$(MAKE) -C "$(BUSYBOX_DIR)" -j "$$(nproc)" CC=../$(MUSL_GCC) all
 
-.PHONY: busybox-update busybox-configure busybox-clean
-
+.PHONY: busybox-update
 busybox-update: $(BUSYBOX_DIR)
 	git -C "$(BUSYBOX_DIR)" pull
 
-busybox-configure: $(BUSYBOX_DIR) $(MUSL_GCC)
+.PHONY: busybox-configure
+busybox-configure: $(BUSYBOX_DIR)
 	cp "$(BUSYBOX_CONFIG)" "$(BUSYBOX_DIR)"/.config
 	$(MAKE) -C "$(BUSYBOX_DIR)" CC=../$(MUSL_GCC) oldconfig
 
+.PHONY: busybox-clean
 busybox-clean:
 	[ -d "$(BUSYBOX_DIR)" ] && $(MAKE) -C "$(BUSYBOX_DIR)" distclean
 
 # https://www.kernel.org/doc/Documentation/admin-guide/devices.txt
 define _ROOTFS_BUILD_CMDS :=
 set -e
-mkdir -p "$(ROOTFS_DIR)"/{root,bin,sbin,dev,proc,etc,sys,tmp}
+rm -rf "$(ROOTFS_DIR)"
+mkdir "$(ROOTFS_DIR)" "$(ROOTFS_DIR)"/root "$(ROOTFS_DIR)"/bin "$(ROOTFS_DIR)"/sbin "$(ROOTFS_DIR)"/dev "$(ROOTFS_DIR)"/proc "$(ROOTFS_DIR)"/etc "$(ROOTFS_DIR)"/sys "$(ROOTFS_DIR)"/tmp
 $(MAKE) -C "$(BUSYBOX_DIR)" CC=../$(MUSL_GCC) CONFIG_PREFIX=../"$(ROOTFS_DIR)" install
 mknod "$(ROOTFS_DIR)"/dev/null c 1 3
 mknod "$(ROOTFS_DIR)"/dev/zero c 1 5
@@ -116,7 +124,7 @@ cd "$(ROOTFS_DIR)" && find . | cpio -H newc -o > ../"$(ROOTFS_CPIO)"
 rm -rf "$(ROOTFS_DIR)"
 endef
 export ROOTFS_BUILD_CMDS := $(value _ROOTFS_BUILD_CMDS)
-$(ROOTFS_CPIO): $(BUSYBOX)
+$(ROOTFS_CPIO): $(BUSYBOX) $(ROOTFS_OVERLAYDIR)
 # We don't need actual root privileges for this operation.
 	echo "$${ROOTFS_BUILD_CMDS}" | fakeroot
 
@@ -127,22 +135,23 @@ rootfs-clean:
 $(LINUX_DIR):
 	git clone --depth=1 "$(LINUX_SOURCE)" "$(LINUX_DIR)"
 
-$(LINUX_HEADERS_DIR): $(LINUX_DIR)
+$(LINUX_HEADERS_DIR): | $(LINUX_DIR)
 	$(MAKE) -C "$(LINUX_DIR)" \
 		headers_install INSTALL_HDR_PATH=../"$(LINUX_HEADERS_DIR)"
 
-$(LINUX_BZIMAGE): $(LINUX_DIR) $(ROOTFS_CPIO) | linux-configure
+$(LINUX_BZIMAGE): $(LINUX_DIR)/.config $(ROOTFS_CPIO) | $(LINUX_DIR)
 	$(MAKE) -C "$(LINUX_DIR)" -j "$$(nproc)" bzImage
 
-.PHONY: linux-update linux-configure linux-clean
-
+.PHONY: linux-update
 linux-update: $(LINUX_DIR)
 	git -C "$(LINUX_DIR)" pull
 
+.PHONY: linux-configure
 linux-configure: $(LINUX_DIR)
 	cp "$(LINUX_CONFIG)" "$(LINUX_DIR)"/.config
 	$(MAKE) -C "$(LINUX_DIR)" oldconfig
 
+.PHONY: linux-clean
 linux-clean:
 	[ -d "$(LINUX_DIR)" ] && $(MAKE) -C "$(LINUX_DIR)" distclean
 	rm -rf "$(LINUX_HEADERS_DIR)"
@@ -169,15 +178,18 @@ export BOOTFS_BUILD_CMDS := $(value _BOOTFS_BUILD_CMDS)
 $(BOOTFS_IMAGE): $(LINUX_BZIMAGE)
 	dd if=/dev/zero of="$(BOOTFS_IMAGE)" \
 		bs=1024 count="$(BOOTFS_SIZE)" conv=fsync
-
 # losetup, mount and mkfs.fat likely require actual root privileges.
 	echo "$${BOOTFS_BUILD_CMDS}" | sudo -s
 
-.PHONY: runqemu-bzImage runqemu-floppy.img
+.PHONY: bootfs-clean
+bootfs-clean:
+	rm -f "$(BOOTFS_IMAGE)"
 
+.PHONY: runqemu-bzImage
 runqemu-bzImage:
 	$(QEMU_CMD) -kernel "$(LINUX_BZIMAGE)"
 
+.PHONY: runqemu-floppy.img
 runqemu-$(BOOTFS_IMAGE):
 # QEMU's UEFI implementation doesn't seem to support booting from an internal
 # FDD, so we simulate an external USB-connected drive instead.

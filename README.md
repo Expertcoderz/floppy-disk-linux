@@ -32,7 +32,13 @@ Makefile host system requirements:
 - the usual core utilities found on GNU/Linux installations
 - `make`, obviously
 
-To fetch, configure and build everything at one go, run:
+To fetch sources and perform initial configuration, run:
+
+```sh
+make configure
+```
+
+Afterwards, to start the actual build process:
 
 ```sh
 make
