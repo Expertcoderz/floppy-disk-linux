@@ -116,6 +116,7 @@ mknod '$(ROOTFS_DIR)'/dev/tty1 c 4 1
 mknod '$(ROOTFS_DIR)'/dev/tty2 c 4 2
 mknod '$(ROOTFS_DIR)'/dev/tty3 c 4 3
 mknod '$(ROOTFS_DIR)'/dev/tty c 5 0
+ln -s '/proc/self/fd' '$(ROOTFS_DIR)'/dev/fd
 ln -s '/proc/self/fd/0' '$(ROOTFS_DIR)'/dev/stdin
 ln -s '/proc/self/fd/1' '$(ROOTFS_DIR)'/dev/stdout
 ln -s '/proc/self/fd/2' '$(ROOTFS_DIR)'/dev/stderr
