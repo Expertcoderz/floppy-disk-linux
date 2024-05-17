@@ -160,19 +160,23 @@ define _BOOTFS_BUILD_CMDS :=
 set -e
 losetup -j "$(BOOTFS_IMAGE)" | cut -d ':' -f 1 | xargs -r losetup -d
 if [ "$(BOOTFS_CREATE_GPT)" = 1 ]; then
-	sgdisk -a 2 -N -t 1:EF00
-	loopdev="$$(losetup -P -f "$(BOOTFS_IMAGE)" --show)"p1
+  sgdisk -a 2 -N -t 1:EF00
+  loopdev="$$(losetup -P -f "$(BOOTFS_IMAGE)" --show)"p1
 else
-	loopdev="$$(losetup -f "$(BOOTFS_IMAGE)" --show)"
+  loopdev="$$(losetup -f "$(BOOTFS_IMAGE)" --show)"
 fi
 mkfs.fat -F 12 -n "$(BOOTFS_LABEL)" "$${loopdev}"
 mountpoint -q "$(BOOTFS_MOUNTDIR)" && umount "$(BOOTFS_MOUNTDIR)"
 mount -m "$${loopdev}" "$(BOOTFS_MOUNTDIR)"
 mkdir -p "$(BOOTFS_MOUNTDIR)"/EFI/BOOT
-cp "$(LINUX_BZIMAGE)" "$(BOOTFS_MOUNTDIR)"/EFI/BOOT/BOOTX64.EFI
-umount "$(BOOTFS_MOUNTDIR)"
-rmdir "$(BOOTFS_MOUNTDIR)"
-losetup -d "$${loopdev%p1}"
+cleanup() {
+  umount "$(BOOTFS_MOUNTDIR)"
+  rmdir "$(BOOTFS_MOUNTDIR)"
+  losetup -d "$${loopdev%p1}"
+  exit "$$1"
+}
+cp "$(LINUX_BZIMAGE)" "$(BOOTFS_MOUNTDIR)"/EFI/BOOT/BOOTX64.EFI || cleanup 1
+cleanup 0
 endef
 export BOOTFS_BUILD_CMDS := $(value _BOOTFS_BUILD_CMDS)
 $(BOOTFS_IMAGE): $(LINUX_BZIMAGE)
