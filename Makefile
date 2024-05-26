@@ -1,7 +1,7 @@
 # Sources
-MUSL_SOURCE := git://git.musl-libc.org/musl
-BUSYBOX_SOURCE := git://busybox.net/busybox.git
-LINUX_SOURCE := git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+MUSL_SOURCE := https://git.musl-libc.org/git/musl
+BUSYBOX_SOURCE := https://git.busybox.net/busybox
+LINUX_SOURCE := https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 
 # Configuration
 BUSYBOX_CONFIG := busybox.config
