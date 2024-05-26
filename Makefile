@@ -10,7 +10,8 @@ LINUX_CONFIG := linux.config
 BOOTFS_LABEL := BOOT
 BOOTFS_SIZE := 1440
 BOOTFS_CREATE_GPT := 0
-QEMU_CMD := qemu-system-x86_64 -bios /usr/share/ovmf/x64/OVMF.fd -smp 2
+QEMU := qemu-system-x86_64
+QEMUFLAGS := -bios /usr/share/ovmf/x64/OVMF.fd -smp 2
 
 # Temporary directories
 ROOTFS_DIR := rootfs
@@ -192,13 +193,13 @@ bootfs-clean:
 
 .PHONY: runqemu-bzImage
 runqemu-bzImage:
-	$(QEMU_CMD) -kernel '$(LINUX_BZIMAGE)'
+	$(QEMU) $(QEMUFLAGS) -kernel '$(LINUX_BZIMAGE)'
 
 .PHONY: runqemu-floppy.img
 runqemu-$(BOOTFS_IMAGE):
 # QEMU's UEFI implementation doesn't seem to support booting from an internal
 # FDD, so we simulate an external USB-connected drive instead.
-	$(QEMU_CMD) \
+	$(QEMU) $(QEMUFLAGS) \
 		-drive id=usbstick,if=none,file='$(BOOTFS_IMAGE)',format=raw \
 		-usb \
 		-device usb-ehci,id=ehci \
