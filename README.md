@@ -24,6 +24,7 @@ disk image.
 Makefile host system requirements:
 
 - `git` for fetching and updating all sources
+- `gcc` and `binutils` for building
 - `fakeroot` for creating `rootfs.cpio`
 - `sudo`, `mount`, `umount`, `mountpoint`, `losetup`, `mkfs.fat` for creating
   `floppy.img`
@@ -104,7 +105,7 @@ of the UEFI Specification 2.10:
 Therefore, creating a GUID Partition Table (GPT) and "EFI System Partition" on
 `floppy.img` should not be necessary for it to boot successfully. To create a
 GPT and place the filesystem on an EFI System Partition anyway, pass
-`BOOTFS_CREATE_GPT=1` to `make`:
+`BOOTFS_CREATE_GPT=1` to `make` (requires the `sgdisk` utility):
 
 ```sh
 make BOOTFS_CREATE_GPT=1
