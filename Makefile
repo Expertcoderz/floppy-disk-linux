@@ -54,13 +54,8 @@ $(MUSL_BUILD_DIR): | $(LINUX_HEADERS_DIR)
 # These symlinks ensure that programs and headers required for building BusyBox
 # under musl are present (besides musl-gcc).
 # Refer: https://www.openwall.com/lists/musl/2014/08/08/13
-	ln -s "$$(which as)" '$@'/bin/musl-as
 	ln -s "$$(which ar)" '$@'/bin/musl-ar
-	ln -s "$$(which nm)" '$@'/bin/musl-nm
 	ln -s "$$(which strip)" '$@'/bin/musl-strip
-	ln -s "$$(which objcopy)" '$@'/bin/musl-objcopy
-	ln -s "$$(which objdump)" '$@'/bin/musl-objdum
-	ln -s "$$(which pkg-config)" '$@'/bin/musl-pkg-config
 	ln -s '../../$(LINUX_HEADERS_DIR)/include/linux' '$@'/include/linux
 	ln -s '../../$(LINUX_HEADERS_DIR)/include/mtd' '$@'/include/mtd
 	ln -s '../../$(LINUX_HEADERS_DIR)/include/asm' '$@'/include/asm
