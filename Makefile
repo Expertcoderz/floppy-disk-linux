@@ -41,30 +41,30 @@ reset:
 		'$(BOOTFS_MOUNTDIR)' '$(BOOTFS_IMAGE)'
 
 $(MUSL_DIR):
-	git clone --depth=1 '$(MUSL_SOURCE)' '$(MUSL_DIR)'
+	git clone --depth=1 '$(MUSL_SOURCE)' '$@'
 
 $(MUSL_BUILD_DIR): | $(LINUX_HEADERS_DIR)
-	rm -rf '$(MUSL_BUILD_DIR)'
+	rm -rf '$@'
 
-	mkdir '$(MUSL_BUILD_DIR)' \
-		'$(MUSL_BUILD_DIR)'/bin \
-		'$(MUSL_BUILD_DIR)'/include \
-		'$(MUSL_BUILD_DIR)'/lib
+	mkdir '$@' \
+		'$@'/bin \
+		'$@'/include \
+		'$@'/lib
 
 # These symlinks ensure that programs and headers required for building BusyBox
 # under musl are present (besides musl-gcc).
 # Refer: https://www.openwall.com/lists/musl/2014/08/08/13
-	ln -s "$$(which as)" '$(MUSL_BUILD_DIR)'/bin/musl-as
-	ln -s "$$(which ar)" '$(MUSL_BUILD_DIR)'/bin/musl-ar
-	ln -s "$$(which nm)" '$(MUSL_BUILD_DIR)'/bin/musl-nm
-	ln -s "$$(which strip)" '$(MUSL_BUILD_DIR)'/bin/musl-strip
-	ln -s "$$(which objcopy)" '$(MUSL_BUILD_DIR)'/bin/musl-objcopy
-	ln -s "$$(which objdump)" '$(MUSL_BUILD_DIR)'/bin/musl-objdum
-	ln -s "$$(which pkg-config)" '$(MUSL_BUILD_DIR)'/bin/musl-pkg-config
-	ln -s '../../$(LINUX_HEADERS_DIR)/include/linux' '$(MUSL_BUILD_DIR)'/include/linux
-	ln -s '../../$(LINUX_HEADERS_DIR)/include/mtd' '$(MUSL_BUILD_DIR)'/include/mtd
-	ln -s '../../$(LINUX_HEADERS_DIR)/include/asm' '$(MUSL_BUILD_DIR)'/include/asm
-	ln -s '../../$(LINUX_HEADERS_DIR)/include/asm-generic' '$(MUSL_BUILD_DIR)'/include/asm-generic
+	ln -s "$$(which as)" '$@'/bin/musl-as
+	ln -s "$$(which ar)" '$@'/bin/musl-ar
+	ln -s "$$(which nm)" '$@'/bin/musl-nm
+	ln -s "$$(which strip)" '$@'/bin/musl-strip
+	ln -s "$$(which objcopy)" '$@'/bin/musl-objcopy
+	ln -s "$$(which objdump)" '$@'/bin/musl-objdum
+	ln -s "$$(which pkg-config)" '$@'/bin/musl-pkg-config
+	ln -s '../../$(LINUX_HEADERS_DIR)/include/linux' '$@'/include/linux
+	ln -s '../../$(LINUX_HEADERS_DIR)/include/mtd' '$@'/include/mtd
+	ln -s '../../$(LINUX_HEADERS_DIR)/include/asm' '$@'/include/asm
+	ln -s '../../$(LINUX_HEADERS_DIR)/include/asm-generic' '$@'/include/asm-generic
 
 $(MUSL_GCC): | $(MUSL_DIR) $(MUSL_BUILD_DIR)
 	$(MAKE) -C '$(MUSL_DIR)' -j "$$(nproc)" all
@@ -72,11 +72,11 @@ $(MUSL_GCC): | $(MUSL_DIR) $(MUSL_BUILD_DIR)
 
 .PHONY: musl-update
 musl-update: $(MUSL_DIR)
-	git -C '$(MUSL_DIR)' pull
+	git -C '$<' pull
 
 .PHONY: musl-configure
 musl-configure: $(MUSL_DIR)
-	cd '$(MUSL_DIR)' && ./configure --prefix=../'$(MUSL_BUILD_DIR)'
+	cd '$<' && ./configure --prefix=../'$(MUSL_BUILD_DIR)'
 
 .PHONY: musl-clean
 musl-clean:
@@ -84,19 +84,19 @@ musl-clean:
 	rm -rf '$(MUSL_BUILD_DIR)'
 
 $(BUSYBOX_DIR):
-	git clone --depth=1 '$(BUSYBOX_SOURCE)' '$(BUSYBOX_DIR)'
+	git clone --depth=1 '$(BUSYBOX_SOURCE)' '$@'
 
 $(BUSYBOX): $(BUSYBOX_DIR)/.config $(MUSL_GCC) | $(BUSYBOX_DIR)
-	$(MAKE) -C '$(BUSYBOX_DIR)' -j "$$(nproc)" CC=../$(MUSL_GCC) all
+	$(MAKE) -C '$(<D)' -j "$$(nproc)" CC=../$(MUSL_GCC) all
 
 .PHONY: busybox-update
 busybox-update: $(BUSYBOX_DIR)
-	git -C '$(BUSYBOX_DIR)' pull
+	git -C '$<' pull
 
 .PHONY: busybox-configure
 busybox-configure: $(BUSYBOX_DIR)
-	cp '$(BUSYBOX_CONFIG)' '$(BUSYBOX_DIR)'/.config
-	$(MAKE) -C '$(BUSYBOX_DIR)' CC=../$(MUSL_GCC) oldconfig
+	cp '$(BUSYBOX_CONFIG)' '$<'/.config
+	$(MAKE) -C '$<' CC=../$(MUSL_GCC) oldconfig
 
 .PHONY: busybox-clean
 busybox-clean:
@@ -135,23 +135,23 @@ rootfs-clean:
 	rm -rf '$(ROOTFS_DIR)' '$(ROOTFS_CPIO)'
 
 $(LINUX_DIR):
-	git clone --depth=1 '$(LINUX_SOURCE)' '$(LINUX_DIR)'
+	git clone --depth=1 '$(LINUX_SOURCE)' '$@'
 
 $(LINUX_HEADERS_DIR): | $(LINUX_DIR)
 	$(MAKE) -C '$(LINUX_DIR)' \
-		headers_install INSTALL_HDR_PATH=../'$(LINUX_HEADERS_DIR)'
+		headers_install INSTALL_HDR_PATH=../'$@'
 
 $(LINUX_BZIMAGE): $(LINUX_DIR)/.config $(ROOTFS_CPIO) | $(LINUX_DIR)
-	$(MAKE) -C '$(LINUX_DIR)' -j "$$(nproc)" bzImage
+	$(MAKE) -C '$(<D)' -j "$$(nproc)" bzImage
 
 .PHONY: linux-update
 linux-update: $(LINUX_DIR)
-	git -C '$(LINUX_DIR)' pull
+	git -C '$<' pull
 
 .PHONY: linux-configure
 linux-configure: $(LINUX_DIR)
-	cp '$(LINUX_CONFIG)' '$(LINUX_DIR)'/.config
-	$(MAKE) -C '$(LINUX_DIR)' oldconfig
+	cp '$(LINUX_CONFIG)' '$<'/.config
+	$(MAKE) -C '$<' oldconfig
 
 .PHONY: linux-clean
 linux-clean:
@@ -182,7 +182,7 @@ cleanup 0
 endef
 export BOOTFS_BUILD_CMDS := $(value _BOOTFS_BUILD_CMDS)
 $(BOOTFS_IMAGE): $(LINUX_BZIMAGE)
-	dd if=/dev/zero of='$(BOOTFS_IMAGE)' \
+	dd if=/dev/zero of='$@' \
 		bs=1024 count='$(BOOTFS_SIZE)' conv=fsync
 # losetup, mount and mkfs.fat likely require actual root privileges.
 	echo "$${BOOTFS_BUILD_CMDS}" | sudo -s
