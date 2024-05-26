@@ -164,7 +164,7 @@ make BOOTFS_CREATE_GPT=1
 
 - Add `make` targets to analyze image size.
 
-[^1]: For an example of feature-rich OS on a floppy disk, see: https://menuetos.net/.
+[^1]: For an example of a feature-rich OS on a floppy disk, see: https://menuetos.net/.
 
 [^2]: Other FAT sizes such as FAT16 and FAT32 are unable to handle a 1.44 MB
 filesystem size and thus cannot be used to format the floppy disk.
